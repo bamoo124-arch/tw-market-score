@@ -17,7 +17,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,13 +28,22 @@ jobs:
       - name: 抓資料
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
-        run: python src/fetch.py
+          PYTHONUNBUFFERED: "1"
+        run: |
+          mkdir -p logs
+          set -o pipefail
+          timeout 290m python src/fetch.py 2>&1 | tee logs/fetch.log
       - name: 算分數與回測
-        run: python src/model.py
+        if: always()
+        run: |
+          set -o pipefail
+          python src/model.py 2>&1 | tee logs/model.log
       - name: 存回 repo
+        if: always()
         run: |
           git config user.name "market-score-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data docs/data.json
-          git diff --cached --quiet || git commit -m "盤後更新 $(TZ=Asia/Taipei date +%F)"
+          git add -A data docs/data.json logs 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "盤後更新 $(TZ=Asia/Taipei date '+%F %H:%M')"
+          git pull --rebase -q || true
           git push
