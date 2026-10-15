@@ -100,7 +100,7 @@ details summary{cursor:pointer;color:var(--ink2);font-size:14px}
     </div>
     <div class="card">
       <h2>分數組成</h2>
-      <div class="sub" style="margin-bottom:8px">每個因子在 −1（偏空）到 +1（偏多）之間，右欄是權重</div>
+      <div class="sub" style="margin-bottom:8px">每個因子在 −1（偏空）到 +1（偏多）之間，右欄是權重。恐慌賣壓是直接加分項。</div>
       <div id="comps"></div>
     </div>
   </section>
@@ -133,15 +133,15 @@ details summary{cursor:pointer;color:var(--ink2);font-size:14px}
   </section>
 
   <section class="card" style="margin-top:14px">
-    <h2>驗證：每一個轉折點，分數準不準</h2>
-    <div class="sub">「事前有警示」：高點前 20 天內分數曾 ≥ 60（還在偏多，等於沒逃頂）或低點前 20 天內曾 ≤ 40（有反映賣壓）。「確認天數」：轉折後要幾天分數才翻到對的方向（高點後 ≤ 40，低點後 ≥ 60），以及這段時間指數已經走了多少。</div>
+    <h2>驗證：每一段漲跌波段，分數準不準</h2>
+    <div class="sub">把 2017 年以來加權指數每次漲跌超過 10% 的轉折切成波段，看照分數操作在每一段賺賠多少。好的指標應該在上漲段吃到大部分漲幅、在下跌段少賠甚至賺。「轉弱/轉強確認」是轉折後分數要幾天才翻到對的方向（高點後 ≤ 40、低點後 ≥ 60）。</div>
     <div id="pivSummary" style="margin:10px 0"></div>
     <div class="tablewrap"><table id="pivTable"></table></div>
   </section>
 
   <section class="card" style="margin-top:14px">
     <h2>驗證：各因子單獨的預測力</h2>
-    <div class="sub">因子數值與之後 20 日報酬的等級相關係數（IC）。正值代表因子方向正確；絕對值 0.05 以上算有用，0.10 以上算強。樣本外（2023 起）仍為正才可信。</div>
+    <div class="sub">因子數值與之後 20 日報酬的等級相關係數（IC）。正值代表方向正確；0.05 以上算有用，0.10 以上算強。兩段期間都是正的才可信。自營商兩段方向不一致，所以只列出參考、不計分。</div>
     <div class="tablewrap"><table id="icTable" style="margin-top:10px"></table></div>
   </section>
 
@@ -149,10 +149,22 @@ details summary{cursor:pointer;color:var(--ink2);font-size:14px}
     <details>
       <summary>指標怎麼算</summary>
       <div class="note" style="margin-top:10px">
-        <p>每天收盤後抓上市、上櫃的外資與自營商買賣超，外資台指期淨未平倉，以及加權、櫃買指數。每個因子都和自己過去一年的分布比較（Z 分數），所以不受成交量逐年放大的影響。</p>
-        <p>外資現貨同時看 5 日和 20 日累積買賣超，看的是趨勢而不是單日。期貨看淨未平倉水位和 5 日變化。另外有三個「位階」因子：指數距季線過遠會扣分。外資連續大賣、指數又跌深時反而加分，因為這種情況常是相對低點。指數遠高於年線、外資卻持續賣時扣分，代表高檔出貨。</p>
-        <p>權重用 2017–2022 年的資料決定，2023 年起當作沒看過的資料來驗證。如果調整後的權重在樣本外表現比預設差，系統會自動退回預設權重，避免過度擬合。</p>
-        <p>回測假設在 T 日盤後算分數，T+1 日開盤才進場，每次換部位扣 0.05% 成本。強力偏多是 100% 做多，偏多 50%，中性空手，偏空 50% 放空，強力放空 100% 放空。</p>
+        <p><b>資料</b>：每天盤後抓上市、上櫃的外資與自營商買賣超，外資台指期未平倉，以及加權、櫃買指數。所有法人數據都和自己過去一年的分布比較（Z 分數），不受市場規模逐年放大影響。</p>
+        <p><b>研究發現（2017–2026）</b>：外資現貨買賣超單獨用來預測大盤效果很弱；外資台指期未平倉的「水位」會翻轉，不能直接用。比較可靠的是：</p>
+        <ul>
+          <li>外資台指期 5 日／20 日的增減倉方向</li>
+          <li>指數趨勢</li>
+          <li>「跌深＋外資大賣」之後通常反彈（你觀察到的相對低點）</li>
+          <li>只有在「空頭趨勢＋期貨加空＋現貨賣超」三者同時成立時，之後才明顯下跌</li>
+        </ul>
+        <p><b>計分</b>：</p>
+        <ul>
+          <li>趨勢 ×2、外資期貨增減倉 ×2、外資現貨 ×1、空方共振 ×1，加權平均後轉成 0–100 分</li>
+          <li>指數跌破季線 4% 以上時，偏空的部分逐步打折，跌破 10% 時偏空訊號歸零（跌深不追空）</li>
+          <li>恐慌賣壓（外資 20 日大賣且距一年高點 −8% 以上）直接加分</li>
+          <li>指數乖離過大不扣分，因為研究顯示過熱之後多半續漲</li>
+        </ul>
+        <p><b>驗證</b>：權重只看 2017–2022 決定，2023 年起當作沒看過的資料檢驗。回測假設 T 日盤後算分、T+1 日開盤進場，每次換部位扣 0.05% 成本。部位：強力偏多 100% 做多、偏多 50%、中性空手、偏空 50% 放空、強力放空 100% 放空。</p>
         <p>這是統計工具，不是投資建議。過去的準確度不保證未來。</p>
       </div>
     </details>
@@ -180,7 +192,8 @@ function hero(){
   const m=document.getElementById('meter');
   m.innerHTML=['--bear-strong','--bear','--neutral','--bull','--bull-strong'].map(v=>`<span style="background:${css(v)}"></span>`).join('')+`<div class="needle" style="left:${L.score}%"></div>`;
   const dlt=L.score-L.prev;
-  document.getElementById('delta').innerHTML=`前一日 <span class="mono">${L.prev.toFixed(1)}</span>（${regOf(L.prev)}），變化 <span class="mono ${dlt>=0?'up':'down'}">${fmtNum(dlt)}</span>`;
+  const g=L.guard>0?`<br>指數已跌破季線 ${fmtPct(L.bias60)}，偏空訊號打 ${(100-L.guard*100).toFixed(0)} 折（跌深不追空）。`:'';
+  document.getElementById('delta').innerHTML=`前一日 <span class="mono">${L.prev.toFixed(1)}</span>（${regOf(L.prev)}），變化 <span class="mono ${dlt>=0?'up':'down'}">${fmtNum(dlt)}</span>${g}`;
   // components
   const comps=document.getElementById('comps');
   comps.innerHTML=Object.entries(L.components).map(([k,v])=>{
@@ -250,41 +263,42 @@ function eqChart(){
     shapes:[{type:'line',yref:'paper',y0:0,y1:1,x0:D.train_end,x1:D.train_end,line:{color:css('--ink3'),dash:'dot',width:1}}],
     annotations:[{x:D.train_end,yref:'paper',y:1,text:'← 訓練期｜樣本外 →',showarrow:false,font:{size:11,color:css('--ink3')},yanchor:'bottom'}]};
   Plotly.react('chartEq',traces,L,{displayModeBar:false,responsive:true});
-  const R=D.results[D.weights_used];
-  document.getElementById('eqsub').textContent=`目前使用${D.weights_used==='tuned'?'訓練期調整後':'預設'}的權重。虛線左邊是用來決定權重的資料，右邊才是真正的檢驗。`;
+  const R=D.results;
+  document.getElementById('eqsub').textContent='權重只用虛線左邊（2017–2022）的資料決定，右邊（2023 起）是沒看過的資料，才是真正的檢驗。';
   const row=(lbl,s)=>`<td>${lbl}</td><td class="mono">${fmtPct(s.cagr)}</td><td class="mono">${s.sharpe==null?'–':s.sharpe.toFixed(2)}</td><td class="mono">${fmtPct(s.mdd)}</td>`;
   const per={train:'訓練期 2017–2022',test:'樣本外 2023–今',all:'全期間'};
   document.getElementById('stats').innerHTML='<tr><th>期間／方式</th><th>年化報酬</th><th>夏普值</th><th>最大回撤</th></tr>'+
     Object.entries(per).map(([k,l])=>`<tr>${row(l+'・照分數',R[k])}</tr><tr style="color:var(--ink3)">${row(l+'・買進持有',R[k].bh)}</tr>`).join('')+
-    `<tr><td colspan="4" class="note" style="text-align:left;white-space:normal">對照：預設權重樣本外夏普值 ${D.results.default.test.sharpe?.toFixed(2)}，調整後權重 ${D.results.tuned.test.sharpe?.toFixed(2)}。分數與之後 20 日報酬的相關係數（樣本外）${D.results[D.weights_used].test.ic20?.toFixed(3)}。</td></tr>`;
+    `<tr><td colspan="4" class="note" style="text-align:left;white-space:normal">全期間各區間佔比：${Object.entries(R.all.time_in).map(([k,v])=>`${k} ${(v*100).toFixed(0)}%`).join('、')}。分數與之後 20 日報酬的等級相關係數：訓練期 ${R.train.ic20?.toFixed(3)}，樣本外 ${R.test.ic20?.toFixed(3)}。</td></tr>`;
 }
 
 function regTable(){
-  const rows=D.results[D.weights_used][per].regimes;
+  const rows=D.results[per].regimes;
   document.getElementById('regTable').innerHTML='<tr><th>分數區間</th><th>天數</th><th>佔比</th><th>5 日報酬</th><th>5 日勝率</th><th>20 日報酬</th><th>20 日勝率</th><th>60 日報酬</th><th>60 日勝率</th></tr>'+
     rows.map(r=>{const [c]=regColor(r.regime);return `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${css(c)};margin-right:6px"></span>${r.regime}</td><td class="mono">${r.days}</td><td class="mono">${r.share==null?'–':(r.share*100).toFixed(0)+'%'}</td>`+
       [5,20,60].map(h=>`<td class="mono ${r['avg'+h]>=0?'up':'down'}">${fmtPct(r['avg'+h],2)}</td><td class="mono">${r['win'+h]==null?'–':(r['win'+h]*100).toFixed(0)+'%'}</td>`).join('')+'</tr>'}).join('');
 }
 
 function pivTable(){
-  const P=D.pivots;
-  const pk=P.filter(p=>p.type==='peak'), tr=P.filter(p=>p.type==='trough');
+  const L=D.legs, P=D.pivots;
+  const up=L.filter(l=>l.dir==='up'&&!l.open), dn=L.filter(l=>l.dir==='down'&&!l.open);
   const avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
-  const lagPk=pk.map(p=>p.confirm_lag).filter(x=>x!=null), lagTr=tr.map(p=>p.confirm_lag).filter(x=>x!=null);
+  const capUp=avg(up.map(l=>l.strat/l.mkt)), dnAvoided=dn.filter(l=>l.strat>l.mkt*0.5).length;
   document.getElementById('pivSummary').innerHTML=`<div class="tiles">
-    <div class="tile"><div class="k">高點：轉弱確認平均天數</div><div class="v mono">${avg(lagPk)?.toFixed(0)??'–'} 天</div><div class="sub">${lagPk.length}/${pk.length} 次有確認</div></div>
-    <div class="tile"><div class="k">高點：確認時已從高點跌</div><div class="v mono down">${fmtPct(avg(pk.map(p=>p.move_during_lag).filter(x=>x!=null)))}</div></div>
-    <div class="tile"><div class="k">低點：轉強確認平均天數</div><div class="v mono">${avg(lagTr)?.toFixed(0)??'–'} 天</div><div class="sub">${lagTr.length}/${tr.length} 次有確認</div></div>
-    <div class="tile"><div class="k">低點：確認時已從低點漲</div><div class="v mono up">${fmtPct(avg(tr.map(p=>p.move_during_lag).filter(x=>x!=null)))}</div></div></div>`;
-  document.getElementById('pivTable').innerHTML='<tr><th>日期</th><th>轉折</th><th>指數</th><th>當天分數</th><th>前 20 天分數區間</th><th>事前有警示</th><th>確認天數</th><th>確認時指數已走</th></tr>'+
-    P.slice().reverse().map(p=>`<tr><td class="mono">${p.date}</td><td class="${p.type==='peak'?'down':'up'}">${p.type==='peak'?'▼ 高點':'▲ 低點'}</td><td class="mono">${p.price.toLocaleString(undefined,{maximumFractionDigits:0})}</td><td class="mono">${p.score}</td><td class="mono">${p.min20}–${p.max20}</td><td>${p.type==='trough'?(p.flag_before?'有，已偏空':'沒有'):(p.flag_before?'沒有，仍偏多':'有，已降溫')}</td><td class="mono">${p.confirm_lag??'60 天內未確認'}</td><td class="mono">${fmtPct(p.move_during_lag)}</td></tr>`).join('');
+    <div class="tile"><div class="k">上漲波段：平均吃到</div><div class="v mono up">${capUp==null?'–':(capUp*100).toFixed(0)+'%'}</div><div class="sub">${up.length} 段上漲的漲幅</div></div>
+    <div class="tile"><div class="k">下跌波段：損失少於一半</div><div class="v mono">${dnAvoided}/${dn.length}</div><div class="sub">段（相對抱著不動）</div></div>
+    <div class="tile"><div class="k">低點當天仍在放空</div><div class="v mono">${P.filter(p=>p.type==='trough'&&p.score<40).length}/${P.filter(p=>p.type==='trough').length}</div><div class="sub">次（越少越好）</div></div>
+    <div class="tile"><div class="k">高點當天仍強力偏多</div><div class="v mono">${P.filter(p=>p.type==='peak'&&p.score>=80).length}/${P.filter(p=>p.type==='peak').length}</div><div class="sub">次（越少越好）</div></div></div>`;
+  document.getElementById('pivTable').innerHTML='<tr><th>波段</th><th>方向</th><th>交易日</th><th>加權指數</th><th>照分數操作</th><th>平均部位</th><th>起點分數</th><th>轉弱/轉強確認</th></tr>'+
+    L.slice().reverse().map(l=>{const p=P.find(x=>x.date===l.start)||{};const pos=l.avg_pos;
+      return `<tr><td class="mono">${l.start} → ${l.open?'今天':l.end}</td><td class="${l.dir==='up'?'up':'down'}">${l.dir==='up'?'▲ 上漲':'▼ 下跌'}${l.open?'（進行中）':''}</td><td class="mono">${l.days}</td><td class="mono ${l.mkt>=0?'up':'down'}">${fmtPct(l.mkt)}</td><td class="mono ${l.strat>=0?'up':'down'}">${fmtPct(l.strat)}</td><td class="mono">${pos>=0?'多 ':'空 '}${Math.abs(pos*100).toFixed(0)}%</td><td class="mono">${p.score??'–'} ${p.regime??''}</td><td class="mono">${p.confirm_lag==null?'60 天內未確認':p.confirm_lag+' 天'}</td></tr>`}).join('');
 }
 
 function icTable(){
   const ic=D.component_ic, lab=D.component_labels, w=D.weights;
   const cell=v=>v==null?'<td class="mono">–</td>':`<td class="mono ${v>=0.05?'up':v<=-0.05?'down':''}">${v.toFixed(3)}</td>`;
   document.getElementById('icTable').innerHTML='<tr><th>因子</th><th>權重</th><th>IC 訓練期</th><th>IC 樣本外</th></tr>'+
-    Object.keys(ic).map(k=>`<tr><td>${lab[k]}</td><td class="mono">${w[k]}</td>${cell(ic[k].train)}${cell(ic[k].test)}</tr>`).join('');
+    Object.keys(ic).map(k=>`<tr><td>${lab[k]}</td><td class="mono">${w[k]??'不計分'}</td>${cell(ic[k].train)}${cell(ic[k].test)}</tr>`).join('');
 }
 
 function segs(){

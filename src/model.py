@@ -27,14 +27,14 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
-COMPONENTS = ["fx_twse", "dl_twse", "fx_otc", "dl_otc", "fut", "trend", "level", "capit", "distrib"]
+COMPONENTS = ["trend", "fut", "spot", "bearconf", "capit"]
 COMP_LABEL = {
-    "fx_twse": "上市外資現貨", "dl_twse": "上市自營商", "fx_otc": "上櫃外資現貨", "dl_otc": "上櫃自營商",
-    "fut": "外資台指期未平倉", "trend": "加權指數趨勢", "level": "位階（過熱扣分）",
-    "capit": "恐慌賣壓（低檔加分）", "distrib": "高檔出貨（扣分）",
+    "trend": "加權指數趨勢", "fut": "外資台指期增減倉", "spot": "外資現貨（上市＋上櫃）",
+    "bearconf": "空方共振（趨勢＋期貨＋現貨同步偏空）", "capit": "恐慌賣壓（跌深＋外資大賣 → 加分）",
 }
-DEFAULT_W = {"fx_twse": 2, "dl_twse": 1, "fx_otc": 1, "dl_otc": 0.5, "fut": 2,
-             "trend": 2, "level": 1, "capit": 1.5, "distrib": 1.5}
+# 權重只依 2017–2022 決定（見 README 的研究過程）
+W = {"trend": 2.0, "fut": 2.0, "spot": 1.0, "bearconf": 1.0, "capit": 1.0}
+DEFAULT_W = W
 
 TRAIN_END = "2022-12-31"   # 2017–2022 訓練，2023 之後是樣本外
 SHOW_START = "2017-01-01"
@@ -94,35 +94,33 @@ def flow(x: pd.Series, long=True) -> pd.Series:
 
 def features(df: pd.DataFrame) -> pd.DataFrame:
     c = df["twii_close"]
-    ma20, ma60, ma240 = c.rolling(20).mean(), c.rolling(60).mean(), c.rolling(240).mean()
+    ma20, ma60 = c.rolling(20).mean(), c.rolling(60).mean()
     out = pd.DataFrame(index=df.index)
-    out["fx_twse"] = flow(df["twse_foreign"])
-    out["dl_twse"] = flow(df["twse_dealer"], long=False)
-    out["fx_otc"] = flow(df["otc_foreign"])
-    out["dl_otc"] = flow(df["otc_dealer"], long=False)
-    out["fut"] = 0.6 * sq(z(df["fut_net"])) + 0.4 * sq(z(df["fut_net"].diff(5)))
-    out["trend"] = (np.sign(c - ma20) + np.sign(c - ma60) + np.sign(ma60.diff(10))
-                    + np.sign(ma20 - ma60)) / 4.0
+    out["trend"] = (np.sign(c - ma20) + np.sign(c - ma60) + np.sign(ma60.diff(10)) + np.sign(ma20 - ma60)) / 4.0
+    out["fut"] = 0.5 * sq(z(df["fut_net"].diff(5))) + 0.5 * sq(z(df["fut_net"].diff(20)))
+    fx = df["twse_foreign"] + df["otc_foreign"].fillna(0)
+    fx = fx.where(df["twse_foreign"].notna())
+    out["spot"] = 0.5 * sq(z(fx.rolling(5, min_periods=3).sum())) + 0.5 * sq(z(fx.rolling(20, min_periods=10).sum()))
+    out["bearconf"] = -((out["trend"] < 0) & (out["fut"] < 0) & (out["spot"] < 0)).astype(float) * out["trend"].abs().clip(upper=1)
     bias60 = c / ma60 - 1
-    bias240 = c / ma240 - 1
-    zb60 = z(bias60, 500, 200)
-    zb240 = z(bias240, 500, 200)
-    out["level"] = -sq(zb60)
-    fx_all = df["twse_foreign"].fillna(0) + df["otc_foreign"].fillna(0)
-    zf20 = z(fx_all.rolling(20, min_periods=15).sum())
-    out["capit"] = (np.clip(-zf20 - 1, 0, 2) / 2) * (np.clip(-zb60 - 1, 0, 2) / 2)
-    out["distrib"] = -(np.clip(zb240 - 1, 0, 2) / 2) * (np.clip(-zf20, 0, 2) / 2)
-    # 保留原始數值供網頁顯示
-    out["bias60"], out["bias240"], out["zf20"] = bias60, bias240, zf20
+    dd250 = c / c.rolling(250).max() - 1
+    zf20 = z(fx.rolling(20, min_periods=10).sum())
+    out["capit"] = (np.clip(-zf20 - 0.5, 0, 1.5) / 1.5) * np.clip((-dd250 - 0.08) / 0.10, 0, 1)
+    out["guard"] = np.clip((-bias60 - 0.04) / 0.06, 0, 1)      # 跌破季線 4% 起，偏空訊號逐步打折，10% 時歸零
+    # 只顯示、不計分：自營商（研究顯示預測力不穩定）
+    out["dl_twse"] = sq(z(df["twse_dealer"].rolling(5, min_periods=3).sum()))
+    out["dl_otc"] = sq(z(df["otc_dealer"].rolling(5, min_periods=3).sum()))
+    out["bias60"], out["bias240"], out["dd250"], out["zf20"] = bias60, c / c.rolling(240).mean() - 1, dd250, zf20
     return out
 
 
 def score_from(F: pd.DataFrame, w: dict) -> pd.Series:
-    W = np.array([w[k] for k in COMPONENTS], dtype=float)
-    C = F[COMPONENTS].fillna(0.0).to_numpy()
-    raw = C @ W / max(np.abs(W).sum(), 1e-9)
-    s = 50 + 50 * np.tanh(2.2 * raw)
-    return pd.Series(s, index=F.index).ewm(span=3, adjust=False).mean()
+    lin = ["trend", "fut", "spot", "bearconf"]
+    raw = sum(w[k] * F[k].fillna(0.0) for k in lin) / sum(w[k] for k in lin)
+    raw = raw.where(raw >= 0, raw * (1 - F["guard"].fillna(0.0)))
+    raw = raw + w["capit"] * F["capit"].fillna(0.0)
+    s = 50 + 50 * np.tanh(2.0 * raw)
+    return s.ewm(span=3, adjust=False).mean()
 
 
 # ------------------------------------------------------------------ returns
@@ -148,33 +146,6 @@ def strat_stats(pos: np.ndarray, r1: np.ndarray, cost=0.0005) -> dict:
     peak = np.maximum.accumulate(eq)
     return {"cagr": float(eq[-1] ** (1 / yrs) - 1), "sharpe": float(ret.mean() / (ret.std() + 1e-12) * np.sqrt(252)),
             "mdd": float((eq / peak - 1).min()), "ret": ret}
-
-
-# ------------------------------------------------------------------ tuning
-def tune(F: pd.DataFrame, R: pd.DataFrame, train_mask: pd.Series) -> tuple[dict, dict]:
-    """在訓練期用格點搜尋權重，目標是策略 Sharpe。最多三個等級，避免過度擬合。"""
-    grid = [0.0, 1.0, 2.0]
-    combos = np.array(list(itertools.product(grid, repeat=len(COMPONENTS))))
-    combos = combos[combos[:, COMPONENTS.index("fx_twse")] >= 1]   # 外資現貨一定要納入
-    combos = combos[combos.sum(1) > 0]
-    Ft = F.loc[train_mask, COMPONENTS].fillna(0.0).to_numpy()
-    r1 = R.loc[train_mask, "r1"].to_numpy()
-    ok = ~np.isnan(r1)
-    Ft, r1 = Ft[ok], r1[ok]
-    best, best_sh = None, -9
-    for chunk in np.array_split(combos, max(1, len(combos) // 2000)):
-        raw = Ft @ chunk.T / chunk.sum(1)
-        s = 50 + 50 * np.tanh(2.2 * raw)
-        s = pd.DataFrame(s).ewm(span=3, adjust=False).mean().to_numpy()
-        pos = pos_array(s)
-        turn = np.abs(np.diff(np.vstack([np.zeros((1, pos.shape[1])), pos]), axis=0))
-        ret = pos * r1[:, None] - turn * 0.0005
-        sh = ret.mean(0) / (ret.std(0) + 1e-12) * np.sqrt(252)
-        i = int(np.argmax(sh))
-        if sh[i] > best_sh:
-            best_sh, best = float(sh[i]), chunk[i]
-    w = {k: float(v) for k, v in zip(COMPONENTS, best)}
-    return w, {"train_sharpe": best_sh, "n_combos": int(len(combos))}
 
 
 # ------------------------------------------------------------------ validation
@@ -218,9 +189,28 @@ def pivot_report(pivots, score: pd.Series, close: pd.Series) -> list[dict]:
             p2 = close.iloc[i + lag]
             cost = float(p2 / pv["price"] - 1)
         out.append({"date": d.strftime("%Y-%m-%d"), "type": pv["type"], "price": pv["price"],
-                    "score": round(float(score.iloc[i]), 1), "min20": round(float(before.min()), 1),
+                    "score": round(float(score.iloc[i]), 1), "regime": regime(float(score.iloc[i]))[0], "min20": round(float(before.min()), 1),
                     "max20": round(float(before.max()), 1), "flag_before": warn,
                     "confirm_lag": lag, "move_during_lag": cost})
+    return out
+
+
+def leg_report(pivots, close: pd.Series, pos: pd.Series, r1: pd.Series) -> list[dict]:
+    """每一段 ±10% 波段：指數漲跌、照分數操作的報酬、平均部位。"""
+    out = []
+    pts = [p for p in pivots if p["date"] in close.index]
+    for a, b in zip(pts, pts[1:] + [{"date": close.index[-1], "type": "now", "price": float(close.iloc[-1])}]):
+        m = (close.index >= a["date"]) & (close.index < b["date"])
+        if m.sum() < 3:
+            continue
+        rr = r1[m].fillna(0).to_numpy()
+        pp = pos[m].to_numpy()
+        strat = float(np.prod(1 + pp * rr) - 1)
+        mkt = float(b["price"] / a["price"] - 1)
+        out.append({"start": a["date"].strftime("%Y-%m-%d"), "end": b["date"].strftime("%Y-%m-%d"),
+                    "dir": "up" if a["type"] == "trough" else "down", "days": int(m.sum()),
+                    "mkt": mkt, "strat": strat, "avg_pos": float(pp.mean()),
+                    "open": b["type"] == "now"})
     return out
 
 
@@ -252,35 +242,25 @@ def run(write=True) -> dict:
     train = pd.Series(show & (F.index <= pd.Timestamp(TRAIN_END)), index=F.index)
     test = pd.Series(F.index > pd.Timestamp(TRAIN_END), index=F.index)
 
-    tuned_w, tune_info = tune(F, R, train)
-    results = {}
-    for tag, w in (("default", DEFAULT_W), ("tuned", tuned_w)):
-        s = score_from(F, w)
-        pos = pos_array(s.to_numpy())
-        block = {"weights": w}
-        for per, m in (("train", train), ("test", test), ("all", pd.Series(show, index=F.index))):
-            st = strat_stats(pos[m.to_numpy()], R["r1"].to_numpy()[m.to_numpy()])
-            bh = strat_stats(np.ones(int(m.sum())), R["r1"].to_numpy()[m.to_numpy()], cost=0)
-            sv, fv = s[m], R.loc[m, "f20"]
-            ok = sv.notna() & fv.notna()
-            ic = float(sv[ok].rank().corr(fv[ok].rank())) if ok.sum() > 30 else None
-            block[per] = {k: st[k] for k in ("cagr", "sharpe", "mdd")}
-            block[per]["bh"] = {k: bh[k] for k in ("cagr", "sharpe", "mdd")}
-            block[per]["ic20"] = ic
-            block[per]["regimes"] = regime_table(s, R, m)
-        results[tag] = block
-
-    # 正式使用：樣本外 Sharpe 若調整後明顯較差，就退回預設權重（避免過度擬合）
-    use = "tuned"
-    t_sh, d_sh = results["tuned"]["test"]["sharpe"], results["default"]["test"]["sharpe"]
-    if t_sh is not None and d_sh is not None and t_sh < d_sh - 0.15:
-        use = "default"
-    W = results[use]["weights"]
     score = score_from(F, W)
     pos = pos_array(score.to_numpy())
+    results = {"weights": W}
+    for per, m in (("train", train), ("test", test), ("all", pd.Series(show, index=F.index))):
+        mm = m.to_numpy()
+        st = strat_stats(pos[mm], R["r1"].to_numpy()[mm])
+        bh = strat_stats(np.ones(int(mm.sum())), R["r1"].to_numpy()[mm], cost=0)
+        sv, fv = score[m], R.loc[m, "f20"]
+        ok = sv.notna() & fv.notna()
+        results[per] = {k: st[k] for k in ("cagr", "sharpe", "mdd")}
+        results[per]["bh"] = {k: bh[k] for k in ("cagr", "sharpe", "mdd")}
+        results[per]["ic20"] = float(sv[ok].rank().corr(fv[ok].rank())) if ok.sum() > 30 else None
+        results[per]["regimes"] = regime_table(score, R, m)
+        results[per]["time_in"] = {n: float((pos[mm] == p).mean()) for _, n, p in BANDS}
 
     close = df["twii_close"][show]
-    pivots = pivot_report(zigzag(close, 0.10), score, df["twii_close"])
+    zz = zigzag(close, 0.10)
+    pivots = pivot_report(zz, score, df["twii_close"])
+    legs = leg_report(zz, close, pd.Series(pos, index=F.index)[show], R["r1"][show])
 
     # 權益曲線（全期間）
     r1 = R["r1"].to_numpy()
@@ -291,7 +271,7 @@ def run(write=True) -> dict:
 
     # 個別因子單獨的預測力（20 日 IC），讓使用者知道哪個因子真的有用
     comp_ic = {}
-    for k in COMPONENTS:
+    for k in COMPONENTS + ["dl_twse", "dl_otc"]:
         for per, mm in (("train", train), ("test", test)):
             a, b = F.loc[mm, k], R.loc[mm, "f20"]
             ok = a.notna() & b.notna() & (a != 0)
@@ -307,6 +287,7 @@ def run(write=True) -> dict:
         "twoii": float(df["twoii_close"].iloc[-1]) if "twoii_close" in df else None,
         "components": {k: {"label": COMP_LABEL[k], "value": None if pd.isna(F[k].iloc[-1]) else round(float(F[k].iloc[-1]), 3),
                            "weight": W[k]} for k in COMPONENTS},
+        "guard": round(float(F["guard"].iloc[-1]), 3), "dd250": float(F["dd250"].iloc[-1]),
         "raw": {k: (None if pd.isna(df[k].iloc[-1]) else float(df[k].iloc[-1]))
                 for k in ("twse_foreign", "twse_dealer", "otc_foreign", "otc_dealer", "fut_net")},
         "bias60": float(F["bias60"].iloc[-1]), "bias240": float(F["bias240"].iloc[-1]),
@@ -328,10 +309,9 @@ def run(write=True) -> dict:
     eq_dates = [d.strftime("%Y-%m-%d") for d in F.index[m]]
     out = {
         "generated_at": pd.Timestamp.now("UTC").tz_convert("Asia/Taipei").strftime("%Y-%m-%d %H:%M"),
-        "latest": latest, "freshness": fresh, "weights_used": use, "weights": W,
-        "tune": tune_info, "results": {k: {kk: (vv if kk != "ret" else None) for kk, vv in v.items()} for k, v in results.items()},
-        "component_ic": comp_ic, "component_labels": COMP_LABEL,
-        "pivots": pivots, "series": series,
+        "latest": latest, "freshness": fresh, "weights": W, "results": results,
+        "component_ic": comp_ic, "component_labels": {**COMP_LABEL, "dl_twse": "上市自營商（僅參考）", "dl_otc": "上櫃自營商（僅參考）"},
+        "pivots": pivots, "legs": legs, "series": series,
         "equity": {"date": eq_dates, "strat": [round(float(x), 4) for x in eq_s], "bh": [round(float(x), 4) for x in eq_b]},
         "bands": [{"th": th, "name": n, "pos": p} for th, n, p in BANDS],
         "train_end": TRAIN_END,
@@ -339,7 +319,7 @@ def run(write=True) -> dict:
     if write:
         (ROOT / "docs").mkdir(exist_ok=True)
         (ROOT / "docs" / "data.json").write_text(json.dumps(clean(out), ensure_ascii=False, allow_nan=False), encoding="utf-8")
-        print(f"[model] latest {latest['date']} score {latest['score']} {latest['regime']} (weights: {use})")
+        print(f"[model] latest {latest['date']} score {latest['score']} {latest['regime']}")
     return out
 
 
