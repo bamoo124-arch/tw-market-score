@@ -259,22 +259,22 @@ def _tpex_rows_from_json(j) -> list:
 
 
 def tpex_day(d: dt.date) -> dict | None:
+    """舊版網址（上櫃有價證券）2016 年至今格式一致且都有外資，優先使用；新版網址 2017 年前缺外資列，只當備援。"""
     roc = f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
     attempts = [
-        ("GET", "https://www.tpex.org.tw/www/zh-tw/insti/summary",
-         {"type": "Daily", "date": d.strftime("%Y/%m/%d"), "response": "json"}, None),
-        ("POST", "https://www.tpex.org.tw/www/zh-tw/insti/summary", None,
-         {"type": "Daily", "date": d.strftime("%Y/%m/%d"), "response": "json"}),
         ("GET", "https://www.tpex.org.tw/web/stock/3insti/3insti_summary/3itrdsum_result.php",
          {"l": "zh-tw", "t": "D", "p": "0", "d": roc, "o": "json"}, None),
+        ("GET", "https://www.tpex.org.tw/www/zh-tw/insti/summary",
+         {"type": "Daily", "date": d.strftime("%Y/%m/%d"), "response": "json"}, None),
     ]
     for method, url, params, data in attempts:
         j = get_json(url, params=params, method=method, data=data, tries=1)
         rows = _tpex_rows_from_json(j) if j else []
         if rows:
-            # 單位判斷：外資買進金額正常約 1e10 元；若小於 1e9 視為千元
             buys = [b for n, b, s, x in rows if classify(n) == "foreign"]
-            scale = 1000.0 if buys and buys[0] < 1e9 else 1.0
+            if not buys:
+                continue                      # 有資料但缺外資 → 換下一個網址
+            scale = 1000.0 if buys[0] < 1e9 and buys[0] < 1e6 else 1.0
             return rows_to_record(d, rows, scale)
     return None
 
@@ -314,7 +314,7 @@ def fetch_tpex(trading_days: list[dt.date], budget_min: float = float(os.getenv(
             save("tpex_insti", old)
             new_recs = []
             log(f"tpex progress {i}/{len(missing)} ({time.time() - t0:.0f}s)")
-        time.sleep(2.5)
+        time.sleep(1.2)
     if new_recs:
         save("tpex_insti", merge(old, pd.DataFrame(new_recs)))
 
@@ -379,18 +379,7 @@ def fetch_futures():
             got = pd.concat([got, taifex_range(a, b)])
             a = b + dt.timedelta(days=1)
             time.sleep(2)
-    # FinMind 只有 2018-06 之後 → 更早的從期交所補
-    firsts = [x for x in (got["date"].min() if len(got) else None, old["date"].min() if len(old) else None) if x is not None and not pd.isna(x)]
-    first = min(firsts) if firsts else None
-    if first is None or first > pd.Timestamp(FETCH_START) + pd.Timedelta(days=30):
-        a = pd.Timestamp(FETCH_START).date()
-        stop = (first - pd.Timedelta(days=1)).date() if first is not None else end.date()
-        while a <= stop:
-            b = min(a + dt.timedelta(days=30), stop)
-            got = pd.concat([got, taifex_range(a, b)])
-            a = b + dt.timedelta(days=1)
-            time.sleep(2)
-        log(f"futures TAIFEX backfill -> first {got['date'].min()}")
+    # 註：FinMind 外資期貨只有 2018-06 之後；期交所下載也只提供近幾年，更早的資料無法取得
     if len(got):
         got = got.dropna().groupby("date", as_index=False).last()
     save("fut_oi", merge(old, got))
