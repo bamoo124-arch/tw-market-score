@@ -17,7 +17,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,18 +32,24 @@ jobs:
         run: |
           mkdir -p logs
           set -o pipefail
-          timeout 290m python src/fetch.py 2>&1 | tee logs/fetch.log
-      - name: 算分數與回測
+          timeout 150m python src/fetch.py 2>&1 | tee logs/fetch.log
+      - name: 存回 repo（同步最新程式後重新計分）
         if: always()
         run: |
-          set -o pipefail
-          python src/model.py 2>&1 | tee logs/model.log
-      - name: 存回 repo
-        if: always()
-        run: |
+          set -x
           git config user.name "market-score-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add -A data docs/data.json logs 2>/dev/null || true
-          git diff --cached --quiet || git commit -m "盤後更新 $(TZ=Asia/Taipei date '+%F %H:%M')"
-          git pull --rebase -q || true
-          git push
+          OUT="$RUNNER_TEMP/out"; mkdir -p "$OUT"
+          cp -r data logs "$OUT"/ 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            cp -r "$OUT"/data "$OUT"/logs . 2>/dev/null || true
+            set -o pipefail
+            python src/model.py 2>&1 | tee logs/model.log || true
+            git add -A data docs/data.json logs
+            git diff --cached --quiet && break
+            git commit -q -m "盤後更新 $(TZ=Asia/Taipei date '+%F %H:%M')"
+            git push -q origin HEAD:main && break
+            sleep 10
+          done

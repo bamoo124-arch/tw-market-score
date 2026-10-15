@@ -279,7 +279,7 @@ def tpex_day(d: dt.date) -> dict | None:
     return None
 
 
-def fetch_tpex(trading_days: list[dt.date], budget_min: float = 270):
+def fetch_tpex(trading_days: list[dt.date], budget_min: float = float(os.getenv("TPEX_BUDGET_MIN", "100"))):
     """櫃買中心會擋太密集的請求：放慢速度，失敗時指數退避（最長 10 分鐘），不中途放棄。"""
     old = load("tpex_insti")
     have = set(old["date"].dt.date) if not old.empty else set()
