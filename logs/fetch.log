@@ -1,0 +1,17 @@
+$^TWOII: possibly delisted; no timezone found
+[fetch] yfinance failed (yfinance empty ^TWOII); fallback FinMind
+[fetch] saved prices: 2627 rows, last 2026-10-15
+[fetch] twse FinMind backfill 2627 days, still missing 0
+[fetch] saved twse_insti: 2627 rows, last 2026-10-15
+[fetch] tpex missing 2627 days
+[fetch] tpex progress 0/2627 (4s)
+[fetch] saved tpex_insti: 1 rows, last 2016-01-04
+[fetch] tpex progress 100/2627 (197s)
+[fetch] saved tpex_insti: 101 rows, last 2016-06-04
+[fetch] tpex progress 200/2627 (408s)
+[fetch] saved tpex_insti: 201 rows, last 2016-11-01
+[fetch] tpex: 15 consecutive failures at 2017-01-23, stop
+[fetch] saved tpex_insti: 244 rows, last 2016-12-30
+/home/runner/work/tw-market-score/tw-market-score/src/fetch.py:44: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return (dt.datetime.utcnow() + dt.timedelta(hours=8)).date()
+[fetch] saved fut_oi: 2037 rows, last 2026-10-15
