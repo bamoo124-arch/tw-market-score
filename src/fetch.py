@@ -41,7 +41,7 @@ def log(*a):
 
 
 def today_tw() -> dt.date:
-    return (dt.datetime.utcnow() + dt.timedelta(hours=8)).date()
+    return dt.datetime.now(dt.timezone(dt.timedelta(hours=8))).date()
 
 
 def num(x) -> float:
@@ -279,30 +279,42 @@ def tpex_day(d: dt.date) -> dict | None:
     return None
 
 
-def fetch_tpex(trading_days: list[dt.date]):
+def fetch_tpex(trading_days: list[dt.date], budget_min: float = 270):
+    """櫃買中心會擋太密集的請求：放慢速度，失敗時指數退避（最長 10 分鐘），不中途放棄。"""
     old = load("tpex_insti")
     have = set(old["date"].dt.date) if not old.empty else set()
     missing = [d for d in trading_days if d not in have]
     log(f"tpex missing {len(missing)} days")
-    new_recs, fails = [], 0
+    new_recs, fails, backoff = [], 0, 30
     t0 = time.time()
-    for i, d in enumerate(missing):
+    i = 0
+    while i < len(missing):
+        if time.time() - t0 > budget_min * 60:
+            log(f"tpex: time budget reached, {len(missing) - i} days left for next run")
+            break
+        d = missing[i]
         rec = tpex_day(d)
         if rec and "foreign" in rec:
             new_recs.append(rec)
-            fails = 0
+            fails, backoff = 0, 30
+            i += 1
         else:
             fails += 1
-            if fails >= 15:
-                log(f"tpex: 15 consecutive failures at {d}, stop")
-                break
-        if i % 100 == 0:
+            if fails >= 3:                      # 同一天連續失敗 3 次 → 視為被擋，退避
+                log(f"tpex: blocked at {d}, sleep {backoff}s")
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 600)
+                if backoff >= 600 and fails >= 12:
+                    log(f"tpex: give up on {d}, skip")
+                    i += 1
+                    fails = 0
+                continue
+        if len(new_recs) >= 50:                 # 定期存檔，逾時也不會白做
+            old = merge(old, pd.DataFrame(new_recs))
+            save("tpex_insti", old)
+            new_recs = []
             log(f"tpex progress {i}/{len(missing)} ({time.time() - t0:.0f}s)")
-            if new_recs:   # 中途存檔，避免逾時白做
-                old = merge(old, pd.DataFrame(new_recs))
-                save("tpex_insti", old)
-                new_recs = []
-        time.sleep(0.8)
+        time.sleep(2.5)
     if new_recs:
         save("tpex_insti", merge(old, pd.DataFrame(new_recs)))
 
@@ -367,6 +379,18 @@ def fetch_futures():
             got = pd.concat([got, taifex_range(a, b)])
             a = b + dt.timedelta(days=1)
             time.sleep(2)
+    # FinMind 只有 2018-06 之後 → 更早的從期交所補
+    firsts = [x for x in (got["date"].min() if len(got) else None, old["date"].min() if len(old) else None) if x is not None and not pd.isna(x)]
+    first = min(firsts) if firsts else None
+    if first is None or first > pd.Timestamp(FETCH_START) + pd.Timedelta(days=30):
+        a = pd.Timestamp(FETCH_START).date()
+        stop = (first - pd.Timedelta(days=1)).date() if first is not None else end.date()
+        while a <= stop:
+            b = min(a + dt.timedelta(days=30), stop)
+            got = pd.concat([got, taifex_range(a, b)])
+            a = b + dt.timedelta(days=1)
+            time.sleep(2)
+        log(f"futures TAIFEX backfill -> first {got['date'].min()}")
     if len(got):
         got = got.dropna().groupby("date", as_index=False).last()
     save("fut_oi", merge(old, got))
