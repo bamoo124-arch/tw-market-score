@@ -2,24 +2,100 @@
 [fetch] twoii: FinMind 8 rows
 [fetch] saved prices: 2627 rows, last 2026-10-15
 [fetch] twse_insti up to date
-[fetch] tpex missing 2383 days
-[fetch] tpex: blocked at 2017-01-03, sleep 30s
-[fetch] tpex: blocked at 2017-01-03, sleep 60s
-[fetch] tpex: blocked at 2017-01-03, sleep 120s
-[fetch] tpex: blocked at 2017-01-03, sleep 240s
-[fetch] tpex: blocked at 2017-01-03, sleep 480s
-[fetch] tpex: blocked at 2017-01-03, sleep 600s
-[fetch] tpex: blocked at 2017-01-03, sleep 600s
-[fetch] tpex: blocked at 2017-01-03, sleep 600s
-[fetch] tpex: blocked at 2017-01-03, sleep 600s
-[fetch] tpex: blocked at 2017-01-03, sleep 600s
-[fetch] tpex: give up on 2017-01-03, skip
-[fetch] tpex: blocked at 2017-01-04, sleep 600s
-[fetch] tpex: blocked at 2017-01-04, sleep 600s
-[fetch] tpex: blocked at 2017-01-04, sleep 600s
-[fetch] tpex: blocked at 2017-01-04, sleep 600s
-[fetch] tpex: time budget reached, 2382 days left for next run
-[fetch] taifex error ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-[fetch] taifex error ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-[fetch] futures TAIFEX backfill -> first 2026-10-08 00:00:00
+[fetch] tpex missing 2388 days
+[fetch] saved tpex_insti: 289 rows, last 2017-03-15
+[fetch] tpex progress 50/2388 (74s)
+[fetch] saved tpex_insti: 339 rows, last 2017-05-31
+[fetch] tpex progress 100/2388 (145s)
+[fetch] saved tpex_insti: 389 rows, last 2017-08-08
+[fetch] tpex progress 150/2388 (217s)
+[fetch] saved tpex_insti: 439 rows, last 2017-10-19
+[fetch] tpex progress 200/2388 (288s)
+[fetch] saved tpex_insti: 489 rows, last 2017-12-28
+[fetch] tpex progress 250/2388 (360s)
+[fetch] saved tpex_insti: 539 rows, last 2018-03-20
+[fetch] tpex progress 300/2388 (438s)
+[fetch] saved tpex_insti: 589 rows, last 2018-06-01
+[fetch] tpex progress 350/2388 (510s)
+[fetch] saved tpex_insti: 639 rows, last 2018-08-13
+[fetch] tpex progress 400/2388 (587s)
+[fetch] saved tpex_insti: 689 rows, last 2018-10-24
+[fetch] tpex progress 450/2388 (662s)
+[fetch] saved tpex_insti: 739 rows, last 2019-01-03
+[fetch] tpex progress 500/2388 (735s)
+[fetch] saved tpex_insti: 789 rows, last 2019-03-27
+[fetch] tpex progress 550/2388 (807s)
+[fetch] saved tpex_insti: 839 rows, last 2019-06-11
+[fetch] tpex progress 600/2388 (886s)
+[fetch] saved tpex_insti: 889 rows, last 2019-08-21
+[fetch] tpex progress 650/2388 (957s)
+[fetch] saved tpex_insti: 939 rows, last 2019-11-05
+[fetch] tpex progress 700/2388 (1031s)
+[fetch] saved tpex_insti: 989 rows, last 2020-01-15
+[fetch] tpex progress 750/2388 (1121s)
+[fetch] saved tpex_insti: 1039 rows, last 2020-04-08
+[fetch] tpex progress 800/2388 (1207s)
+[fetch] saved tpex_insti: 1089 rows, last 2020-06-18
+[fetch] tpex progress 850/2388 (1287s)
+[fetch] saved tpex_insti: 1139 rows, last 2020-08-31
+[fetch] tpex progress 900/2388 (1362s)
+[fetch] saved tpex_insti: 1189 rows, last 2020-11-12
+[fetch] tpex progress 950/2388 (1436s)
+[fetch] saved tpex_insti: 1239 rows, last 2021-01-22
+[fetch] tpex progress 1000/2388 (1549s)
+[fetch] saved tpex_insti: 1289 rows, last 2021-04-16
+[fetch] tpex progress 1050/2388 (1623s)
+[fetch] saved tpex_insti: 1339 rows, last 2021-06-29
+[fetch] tpex progress 1100/2388 (1693s)
+[fetch] saved tpex_insti: 1389 rows, last 2021-09-07
+[fetch] tpex progress 1150/2388 (1765s)
+[fetch] saved tpex_insti: 1439 rows, last 2021-11-19
+[fetch] tpex progress 1200/2388 (1836s)
+[fetch] saved tpex_insti: 1489 rows, last 2022-02-09
+[fetch] tpex progress 1250/2388 (1907s)
+[fetch] saved tpex_insti: 1539 rows, last 2022-04-25
+[fetch] tpex progress 1300/2388 (1978s)
+[fetch] saved tpex_insti: 1589 rows, last 2022-07-06
+[fetch] tpex progress 1350/2388 (2049s)
+[fetch] saved tpex_insti: 1639 rows, last 2022-09-15
+[fetch] tpex progress 1400/2388 (2121s)
+[fetch] saved tpex_insti: 1689 rows, last 2022-11-25
+[fetch] tpex progress 1450/2388 (2193s)
+[fetch] saved tpex_insti: 1739 rows, last 2023-02-16
+[fetch] tpex progress 1500/2388 (2266s)
+[fetch] saved tpex_insti: 1789 rows, last 2023-05-05
+[fetch] tpex progress 1550/2388 (2338s)
+[fetch] saved tpex_insti: 1839 rows, last 2023-07-18
+[fetch] tpex progress 1600/2388 (2417s)
+[fetch] saved tpex_insti: 1889 rows, last 2023-09-27
+[fetch] tpex progress 1650/2388 (2488s)
+[fetch] saved tpex_insti: 1939 rows, last 2023-12-11
+[fetch] tpex progress 1700/2388 (2565s)
+[fetch] saved tpex_insti: 1989 rows, last 2024-03-01
+[fetch] tpex progress 1750/2388 (2636s)
+[fetch] saved tpex_insti: 2039 rows, last 2024-05-15
+[fetch] tpex progress 1800/2388 (2708s)
+[fetch] saved tpex_insti: 2089 rows, last 2024-07-29
+[fetch] tpex progress 1850/2388 (2780s)
+[fetch] saved tpex_insti: 2139 rows, last 2024-10-11
+[fetch] tpex progress 1900/2388 (2851s)
+[fetch] saved tpex_insti: 2189 rows, last 2024-12-23
+[fetch] tpex progress 1950/2388 (2922s)
+[fetch] saved tpex_insti: 2239 rows, last 2025-03-14
+[fetch] tpex progress 2000/2388 (2993s)
+[fetch] saved tpex_insti: 2289 rows, last 2025-05-28
+[fetch] tpex progress 2050/2388 (3069s)
+[fetch] saved tpex_insti: 2339 rows, last 2025-08-07
+[fetch] tpex progress 2100/2388 (3146s)
+[fetch] saved tpex_insti: 2389 rows, last 2025-10-21
+[fetch] tpex progress 2150/2388 (3218s)
+[fetch] saved tpex_insti: 2439 rows, last 2026-01-02
+[fetch] tpex progress 2200/2388 (3294s)
+[fetch] saved tpex_insti: 2489 rows, last 2026-03-25
+[fetch] tpex progress 2250/2388 (3373s)
+[fetch] saved tpex_insti: 2539 rows, last 2026-06-08
+[fetch] tpex progress 2300/2388 (3444s)
+[fetch] saved tpex_insti: 2589 rows, last 2026-08-19
+[fetch] tpex progress 2350/2388 (3516s)
+[fetch] saved tpex_insti: 2627 rows, last 2026-10-15
 [fetch] saved fut_oi: 2037 rows, last 2026-10-15
