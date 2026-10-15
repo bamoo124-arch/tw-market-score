@@ -1,17 +1,25 @@
-$^TWOII: possibly delisted; no timezone found
-[fetch] yfinance failed (yfinance empty ^TWOII); fallback FinMind
+[fetch] twii: FinMind 8 rows
+[fetch] twoii: FinMind 8 rows
 [fetch] saved prices: 2627 rows, last 2026-10-15
-[fetch] twse FinMind backfill 2627 days, still missing 0
-[fetch] saved twse_insti: 2627 rows, last 2026-10-15
-[fetch] tpex missing 2627 days
-[fetch] tpex progress 0/2627 (4s)
-[fetch] saved tpex_insti: 1 rows, last 2016-01-04
-[fetch] tpex progress 100/2627 (197s)
-[fetch] saved tpex_insti: 101 rows, last 2016-06-04
-[fetch] tpex progress 200/2627 (408s)
-[fetch] saved tpex_insti: 201 rows, last 2016-11-01
-[fetch] tpex: 15 consecutive failures at 2017-01-23, stop
-[fetch] saved tpex_insti: 244 rows, last 2016-12-30
-/home/runner/work/tw-market-score/tw-market-score/src/fetch.py:44: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
-  return (dt.datetime.utcnow() + dt.timedelta(hours=8)).date()
+[fetch] twse_insti up to date
+[fetch] tpex missing 2383 days
+[fetch] tpex: blocked at 2017-01-03, sleep 30s
+[fetch] tpex: blocked at 2017-01-03, sleep 60s
+[fetch] tpex: blocked at 2017-01-03, sleep 120s
+[fetch] tpex: blocked at 2017-01-03, sleep 240s
+[fetch] tpex: blocked at 2017-01-03, sleep 480s
+[fetch] tpex: blocked at 2017-01-03, sleep 600s
+[fetch] tpex: blocked at 2017-01-03, sleep 600s
+[fetch] tpex: blocked at 2017-01-03, sleep 600s
+[fetch] tpex: blocked at 2017-01-03, sleep 600s
+[fetch] tpex: blocked at 2017-01-03, sleep 600s
+[fetch] tpex: give up on 2017-01-03, skip
+[fetch] tpex: blocked at 2017-01-04, sleep 600s
+[fetch] tpex: blocked at 2017-01-04, sleep 600s
+[fetch] tpex: blocked at 2017-01-04, sleep 600s
+[fetch] tpex: blocked at 2017-01-04, sleep 600s
+[fetch] tpex: time budget reached, 2382 days left for next run
+[fetch] taifex error ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+[fetch] taifex error ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+[fetch] futures TAIFEX backfill -> first 2026-10-08 00:00:00
 [fetch] saved fut_oi: 2037 rows, last 2026-10-15
