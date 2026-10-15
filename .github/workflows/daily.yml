@@ -1,0 +1,40 @@
+name: 每日盤後更新
+
+on:
+  schedule:
+    # 台北時間週一到週五 17:40（法人與期貨資料約 15:00–16:30 公布），20:10 再補跑一次
+    - cron: "40 9 * * 1-5"
+    - cron: "10 12 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 抓資料
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: python src/fetch.py
+      - name: 算分數與回測
+        run: python src/model.py
+      - name: 存回 repo
+        run: |
+          git config user.name "market-score-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data docs/data.json
+          git diff --cached --quiet || git commit -m "盤後更新 $(TZ=Asia/Taipei date +%F)"
+          git push
