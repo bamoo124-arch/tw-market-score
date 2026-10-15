@@ -6,7 +6,7 @@
 <title>大盤多空分數</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script src="plotly.min.js"></script>
 <style>
 :root{
   color-scheme:light;
@@ -308,7 +308,11 @@ function segs(){
   document.querySelectorAll('#perSeg button').forEach(b=>b.onclick=()=>{per=b.dataset.p;segs();regTable()});
 }
 
-function render(){hero();segs();mainChart();eqChart();regTable();pivTable();icTable()}
+function safe(f,id){try{f()}catch(e){console.error(e);const el=id&&document.getElementById(id);if(el)el.innerHTML='<p class="note">此區塊載入失敗：'+e.message+'</p>'}}
+function render(){safe(hero);safe(segs);
+  if(typeof Plotly==='undefined'){['chartMain','chartEq'].forEach(id=>document.getElementById(id).innerHTML='<p class="note">圖表元件載入失敗，請重新整理頁面。</p>')}
+  else{safe(mainChart,'chartMain');safe(eqChart,'chartEq')}
+  safe(regTable,'regTable');safe(pivTable,'pivTable');safe(icTable,'icTable')}
 fetch('data.json?'+Date.now()).then(r=>r.json()).then(j=>{D=j;render()}).catch(e=>{document.getElementById('asof').textContent='資料載入失敗：'+e});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>D&&render());
 </script>
