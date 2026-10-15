@@ -113,31 +113,42 @@ def merge(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
 def fetch_prices():
     old = load("prices")
     start = FETCH_START if old.empty else (old["date"].max() - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
-    new = pd.DataFrame()
-    try:
-        import yfinance as yf
-
-        frames = {}
-        for sym, col in (("^TWII", "twii"), ("^TWOII", "twoii")):
-            h = yf.Ticker(sym).history(start=start, auto_adjust=False)
-            if h.empty:
-                raise RuntimeError(f"yfinance empty {sym}")
-            h.index = pd.to_datetime(h.index).tz_localize(None).normalize()
-            frames[col] = h[["Open", "High", "Low", "Close"]].rename(
-                columns=lambda c: f"{col}_{c.lower()}")
-        new = pd.concat(frames.values(), axis=1).reset_index().rename(columns={"Date": "date", "index": "date"})
-    except Exception as e:  # noqa: BLE001
-        log(f"yfinance failed ({e}); fallback FinMind")
-        a = finmind("TaiwanStockPrice", start, data_id="TAIEX")
-        b = finmind("TaiwanStockPrice", start, data_id="TPEx")
-        if not a.empty:
-            a = a.rename(columns={"open": "twii_open", "max": "twii_high", "min": "twii_low", "close": "twii_close"})
-            a = a[["date", "twii_open", "twii_high", "twii_low", "twii_close"]]
-            if not b.empty:
-                b = b.rename(columns={"open": "twoii_open", "max": "twoii_high", "min": "twoii_low", "close": "twoii_close"})
-                a = a.merge(b[["date", "twoii_open", "twoii_high", "twoii_low", "twoii_close"]], on="date", how="left")
-            a["date"] = pd.to_datetime(a["date"])
-            new = a
+    parts = []
+    for fm_id, yf_sym, col in (("TAIEX", "^TWII", "twii"), ("TPEx", "^TWOII", "twoii")):
+        part = pd.DataFrame()
+        # 主要：FinMind（官方 OHLC，逐年抓避免單次太大）
+        chunks, y = [], pd.Timestamp(start)
+        end = pd.Timestamp(today_tw())
+        while y <= end:
+            y2 = min(y + pd.DateOffset(years=3), end)
+            c = finmind("TaiwanStockPrice", y.strftime("%Y-%m-%d"), y2.strftime("%Y-%m-%d"), data_id=fm_id)
+            if not c.empty:
+                chunks.append(c)
+            y = y2 + pd.Timedelta(days=1)
+        if chunks:
+            c = pd.concat(chunks)
+            part = pd.DataFrame({"date": pd.to_datetime(c["date"]),
+                                 f"{col}_open": c["open"].astype(float), f"{col}_high": c["max"].astype(float),
+                                 f"{col}_low": c["min"].astype(float), f"{col}_close": c["close"].astype(float)})
+            part = part[part[f"{col}_close"] > 0]
+            log(f"{col}: FinMind {len(part)} rows")
+        # 備援：yfinance
+        if part.empty:
+            try:
+                import yfinance as yf
+                h = yf.Ticker(yf_sym).history(start=start, auto_adjust=False)
+                h.index = pd.to_datetime(h.index).tz_localize(None).normalize()
+                h = h[h["Volume"] > 0] if col == "twii" else h
+                part = h[["Open", "High", "Low", "Close"]].rename(columns=lambda x: f"{col}_{x.lower()}")
+                part = part.rename_axis("date").reset_index()
+                log(f"{col}: yfinance {len(part)} rows")
+            except Exception as e:  # noqa: BLE001
+                log(f"{col}: yfinance failed {e}")
+        if not part.empty:
+            parts.append(part.drop_duplicates("date").set_index("date"))
+    new = pd.concat(parts, axis=1).reset_index() if parts else pd.DataFrame()
+    if "twii_close" not in new:
+        new = pd.DataFrame()
     if not new.empty:
         new["date"] = pd.to_datetime(new["date"])
         new = new.dropna(subset=["twii_close"])
