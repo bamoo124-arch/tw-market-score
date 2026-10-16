@@ -236,16 +236,16 @@ function mainChart(){
   [20,40,60,80].forEach(v=>shapes.push({type:'line',xref:'paper',x0:0,x1:1,yref:'y2',y0:v,y1:v,line:{color:css('--grid'),width:1,dash:v==40||v==60?'solid':'dot'}}));
   const pk=D.pivots.filter(p=>p.type==='peak'), tr=D.pivots.filter(p=>p.type==='trough');
   const traces=[
-    {x:S.date,y:S.twii,type:'scatter',mode:'lines',name:'加權指數',line:{color:css('--ink'),width:1.6},yaxis:'y',hovertemplate:'%{y:,.0f}'},
+    {x:S.date,y:S.twii,type:'scatter',mode:'lines',name:'加權指數',line:{color:css('--ink'),width:1.6},yaxis:'y',hovertemplate:'加權指數 %{y:,.0f}<extra></extra>'},
     {x:pk.map(p=>p.date),y:pk.map(p=>p.price),mode:'markers',name:'高點',marker:{symbol:'triangle-down',size:10,color:css('--bear'),line:{color:css('--surface'),width:2}},yaxis:'y',hovertemplate:'高點 %{y:,.0f}'},
     {x:tr.map(p=>p.date),y:tr.map(p=>p.price),mode:'markers',name:'低點',marker:{symbol:'triangle-up',size:10,color:css('--bull'),line:{color:css('--surface'),width:2}},yaxis:'y',hovertemplate:'低點 %{y:,.0f}'},
-    {x:S.date,y:S.score,type:'scatter',mode:'lines',name:'多空分數',line:{color:css('--s1'),width:1.6},yaxis:'y2',hovertemplate:'分數 %{y:.1f}'},
+    {x:S.date,y:S.score,customdata:S.score.map(v=>v==null?'':regOf(v)),type:'scatter',mode:'lines',name:'多空分數',line:{color:css('--s1'),width:1.6},yaxis:'y2',hovertemplate:'分數 %{y:.1f}（%{customdata}）<extra></extra>'},
   ];
   // visible y range for price
   let lo=Infinity,hi=-Infinity; S.date.forEach((d,i)=>{if(d>=x0){lo=Math.min(lo,S.twii[i]);hi=Math.max(hi,S.twii[i])}});
   const pad=(hi-lo)*0.06;
-  const L={...layoutBase(),shapes,
-    xaxis:{range:[x0,x1],showgrid:false,linecolor:css('--line'),type:'date',tickformat:'%Y/%m'},
+  const L={...layoutBase(),shapes,hoversubplots:'axis',
+    xaxis:{range:[x0,x1],showgrid:false,linecolor:css('--line'),type:'date',tickformat:'%Y/%m',hoverformat:'%Y/%m/%d'},
     yaxis:{domain:[0.42,1],range:[lo-pad,hi+pad],gridcolor:css('--grid'),zeroline:false,title:{text:'加權指數',font:{size:12}}},
     yaxis2:{domain:[0,0.36],range:[0,100],gridcolor:'rgba(0,0,0,0)',zeroline:false,tickvals:[0,20,40,60,80,100],title:{text:'分數',font:{size:12}}},
   };
@@ -259,7 +259,7 @@ function eqChart(){
     {x:E.date,y:E.strat,name:'照分數操作',mode:'lines',line:{color:css('--s1'),width:2},hovertemplate:'照分數操作 %{y:.2f}'},
   ];
   const L={...layoutBase(),showlegend:true,legend:{orientation:'h',y:1.08,x:0},margin:{l:48,r:16,t:30,b:30},
-    xaxis:{showgrid:false,linecolor:css('--line'),tickformat:'%Y'},yaxis:{gridcolor:css('--grid'),zeroline:false,title:{text:'淨值（起點 = 1）',font:{size:12}}},
+    xaxis:{showgrid:false,linecolor:css('--line'),tickformat:'%Y',hoverformat:'%Y/%m/%d'},yaxis:{gridcolor:css('--grid'),zeroline:false,title:{text:'淨值（起點 = 1）',font:{size:12}}},
     shapes:[{type:'line',yref:'paper',y0:0,y1:1,x0:D.train_end,x1:D.train_end,line:{color:css('--ink3'),dash:'dot',width:1}}],
     annotations:[{x:D.train_end,yref:'paper',y:1,text:'← 訓練期｜樣本外 →',showarrow:false,font:{size:11,color:css('--ink3')},yanchor:'bottom'}]};
   Plotly.react('chartEq',traces,L,{displayModeBar:false,responsive:true});
