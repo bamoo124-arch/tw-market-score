@@ -27,19 +27,20 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
-COMPONENTS = ["trend", "fut", "spot", "bearconf", "capit"]
+COMPONENTS = ["trend", "fut", "spot", "fxtrend", "bearconf", "capit"]
 COMP_LABEL = {
-    "trend": "加權指數趨勢", "fut": "外資台指期增減倉", "spot": "外資現貨（上市＋上櫃）",
+    "trend": "加權指數趨勢", "fut": "外資台指期增減倉", "spot": "外資現貨（上市＋上櫃）", "fxtrend": "台幣趨勢（站上 60 日線＝升值）",
     "bearconf": "空方共振（趨勢＋期貨＋現貨同步偏空）", "capit": "恐慌賣壓（跌深＋外資大賣 → 加分）",
 }
 # 權重只依 2017–2022 決定（見 README 的研究過程）
-W = {"trend": 2.0, "fut": 2.0, "spot": 1.0, "bearconf": 1.0, "capit": 1.0}
+W = {"trend": 2.0, "fut": 2.0, "spot": 1.0, "fxtrend": 1.0, "bearconf": 1.0, "capit": 1.0}
 DEFAULT_W = W
 
 TRAIN_END = "2022-12-31"   # 2017–2022 訓練，2023 之後是樣本外
 SHOW_START = "2017-01-01"
 
-BANDS = [(80, "強力偏多", 1.0), (60, "偏多", 0.5), (40, "中性", 0.0), (20, "偏空", -0.5), (-1, "強力放空", -1.0)]
+# 部位（偏多版，依 2017–2022 決定）：台股長期向上，中性仍持有一半，只有強力放空才放空
+BANDS = [(80, "強力偏多", 1.0), (60, "偏多", 1.0), (40, "中性", 0.5), (20, "偏空", 0.0), (-1, "強力放空", -0.5)]
 
 
 def regime(score: float) -> tuple[str, float]:
@@ -50,7 +51,7 @@ def regime(score: float) -> tuple[str, float]:
 
 
 def pos_array(scores: np.ndarray) -> np.ndarray:
-    return np.select([scores >= 80, scores >= 60, scores >= 40, scores >= 20], [1.0, 0.5, 0.0, -0.5], -1.0)
+    return np.select([scores >= 80, scores >= 60, scores >= 40, scores >= 20], [1.0, 1.0, 0.5, 0.0], -0.5)
 
 
 # ------------------------------------------------------------------ data
@@ -67,7 +68,11 @@ def load_panel() -> pd.DataFrame:
     if p.exists():
         f = pd.read_csv(p, parse_dates=["date"]).set_index("date")
         df["fut_net"] = f["fut_net"].reindex(df.index).ffill(limit=3)
-    for c in ("twse_foreign", "twse_dealer", "otc_foreign", "otc_dealer", "fut_net"):
+    p = DATA / "fx.csv"
+    if p.exists():
+        fx = pd.read_csv(p, parse_dates=["date"]).set_index("date")["usdtwd"]
+        df["usdtwd"] = fx.reindex(df.index.union(fx.index)).ffill(limit=5).reindex(df.index)
+    for c in ("twse_foreign", "twse_dealer", "otc_foreign", "otc_dealer", "fut_net", "usdtwd"):
         if c not in df:
             df[c] = np.nan
     return df.sort_index()
@@ -106,6 +111,9 @@ def features(df: pd.DataFrame) -> pd.DataFrame:
     dd250 = c / c.rolling(250).max() - 1
     zf20 = z(fx.rolling(20, min_periods=10).sum())
     out["capit"] = (np.clip(-zf20 - 0.5, 0, 1.5) / 1.5) * np.clip((-dd250 - 0.08) / 0.10, 0, 1)
+    twd = -np.log(df["usdtwd"])                                  # 上升 = 台幣升值
+    twd_ma = twd.rolling(60).mean()
+    out["fxtrend"] = (np.sign(twd - twd_ma) + np.sign(twd_ma.diff(10))) / 2
     out["guard"] = np.clip((-bias60 - 0.04) / 0.06, 0, 1)      # 跌破季線 4% 起，偏空訊號逐步打折，10% 時歸零
     # 只顯示、不計分：自營商（研究顯示預測力不穩定）
     out["dl_twse"] = sq(z(df["twse_dealer"].rolling(5, min_periods=3).sum()))
@@ -115,7 +123,7 @@ def features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def score_from(F: pd.DataFrame, w: dict) -> pd.Series:
-    lin = ["trend", "fut", "spot", "bearconf"]
+    lin = ["trend", "fut", "spot", "fxtrend", "bearconf"]
     raw = sum(w[k] * F[k].fillna(0.0) for k in lin) / sum(w[k] for k in lin)
     raw = raw.where(raw >= 0, raw * (1 - F["guard"].fillna(0.0)))
     raw = raw + w["capit"] * F["capit"].fillna(0.0)
@@ -255,7 +263,8 @@ def run(write=True) -> dict:
         results[per]["bh"] = {k: bh[k] for k in ("cagr", "sharpe", "mdd")}
         results[per]["ic20"] = float(sv[ok].rank().corr(fv[ok].rank())) if ok.sum() > 30 else None
         results[per]["regimes"] = regime_table(score, R, m)
-        results[per]["time_in"] = {n: float((pos[mm] == p).mean()) for _, n, p in BANDS}
+        labs = score[m].map(lambda v: regime(v)[0])
+        results[per]["time_in"] = {n: float((labs == n).mean()) for _, n, _ in BANDS}
 
     close = df["twii_close"][show]
     zz = zigzag(close, 0.10)
@@ -289,11 +298,12 @@ def run(write=True) -> dict:
                            "weight": W[k]} for k in COMPONENTS},
         "guard": round(float(F["guard"].iloc[-1]), 3), "dd250": float(F["dd250"].iloc[-1]),
         "raw": {k: (None if pd.isna(df[k].iloc[-1]) else float(df[k].iloc[-1]))
-                for k in ("twse_foreign", "twse_dealer", "otc_foreign", "otc_dealer", "fut_net")},
+                for k in ("twse_foreign", "twse_dealer", "otc_foreign", "otc_dealer", "fut_net", "usdtwd")},
+        "twd_ma60": (lambda t: None if pd.isna(t) else float(t))(df["usdtwd"].rolling(60).mean().iloc[-1]),
         "bias60": float(F["bias60"].iloc[-1]), "bias240": float(F["bias240"].iloc[-1]),
     }
     fresh = {}
-    for k in ("twse_foreign", "otc_foreign", "fut_net", "twii_close"):
+    for k in ("twse_foreign", "otc_foreign", "fut_net", "usdtwd", "twii_close"):
         s = df[k].dropna()
         fresh[k] = s.index[-1].strftime("%Y-%m-%d") if len(s) else None
 

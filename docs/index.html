@@ -149,22 +149,24 @@ details summary{cursor:pointer;color:var(--ink2);font-size:14px}
     <details>
       <summary>指標怎麼算</summary>
       <div class="note" style="margin-top:10px">
-        <p><b>資料</b>：每天盤後抓上市、上櫃的外資與自營商買賣超，外資台指期未平倉，以及加權、櫃買指數。所有法人數據都和自己過去一年的分布比較（Z 分數），不受市場規模逐年放大影響。</p>
+        <p><b>資料</b>：每天盤後抓上市、上櫃的外資與自營商買賣超，外資台指期未平倉，美元兌台幣匯率，以及加權、櫃買指數。所有法人數據都和自己過去一年的分布比較（Z 分數），不受市場規模逐年放大影響。</p>
         <p><b>研究發現（2017–2026）</b>：外資現貨買賣超單獨用來預測大盤效果很弱；外資台指期未平倉的「水位」會翻轉，不能直接用。比較可靠的是：</p>
         <ul>
           <li>外資台指期 5 日／20 日的增減倉方向</li>
           <li>指數趨勢</li>
+          <li>台幣趨勢：台幣站上自己的 60 日均線（升值趨勢）時，之後 20 日表現較好，兩段期間都成立</li>
           <li>「跌深＋外資大賣」之後通常反彈（你觀察到的相對低點）</li>
           <li>只有在「空頭趨勢＋期貨加空＋現貨賣超」三者同時成立時，之後才明顯下跌</li>
         </ul>
         <p><b>計分</b>：</p>
         <ul>
-          <li>趨勢 ×2、外資期貨增減倉 ×2、外資現貨 ×1、空方共振 ×1，加權平均後轉成 0–100 分</li>
+          <li>指數趨勢 ×2、外資期貨增減倉 ×2、外資現貨 ×1、台幣趨勢 ×1、空方共振 ×1，加權平均後轉成 0–100 分</li>
           <li>指數跌破季線 4% 以上時，偏空的部分逐步打折，跌破 10% 時偏空訊號歸零（跌深不追空）</li>
           <li>恐慌賣壓（外資 20 日大賣且距一年高點 −8% 以上）直接加分</li>
           <li>指數乖離過大不扣分，因為研究顯示過熱之後多半續漲</li>
         </ul>
-        <p><b>驗證</b>：權重只看 2017–2022 決定，2023 年起當作沒看過的資料檢驗。回測假設 T 日盤後算分、T+1 日開盤進場，每次換部位扣 0.05% 成本。部位：強力偏多 100% 做多、偏多 50%、中性空手、偏空 50% 放空、強力放空 100% 放空。</p>
+        <p><b>驗證</b>：權重只看 2017–2022 決定，2023 年起當作沒看過的資料檢驗。回測假設 T 日盤後算分、T+1 日開盤進場，每次換部位扣 0.05% 成本。</p>
+        <p><b>部位對照</b>：強力偏多、偏多 → 做多 100%；中性 → 做多 50%；偏空 → 空手；強力放空 → 放空 50%。台股長期向上，研究顯示中性時完全空手會錯過太多漲幅，所以採偏多配置，只在最弱的時候才放空。</p>
         <p>這是統計工具，不是投資建議。過去的準確度不保證未來。</p>
       </div>
     </details>
@@ -188,7 +190,8 @@ function hero(){
   const el=document.getElementById('score'); el.textContent=L.score.toFixed(1);
   const [c,soft]=regColor(L.regime);
   el.style.color=css(c);
-  const r=document.getElementById('regime'); r.textContent=L.regime; r.style.background=css(soft); r.style.color=css(c);
+  const posTxt={'強力偏多':'做多 100%','偏多':'做多 100%','中性':'做多 50%','偏空':'空手','強力放空':'放空 50%'}[L.regime];
+  const r=document.getElementById('regime'); r.textContent=L.regime+'｜'+posTxt; r.style.background=css(soft); r.style.color=css(c);
   const m=document.getElementById('meter');
   m.innerHTML=['--bear-strong','--bear','--neutral','--bull','--bull-strong'].map(v=>`<span style="background:${css(v)}"></span>`).join('')+`<div class="needle" style="left:${L.score}%"></div>`;
   const dlt=L.score-L.prev;
@@ -207,10 +210,11 @@ function hero(){
   document.getElementById('tiles').innerHTML=
     tile('上市外資',R.twse_foreign,'億')+tile('上市自營商',R.twse_dealer,'億')+tile('上櫃外資',R.otc_foreign,'億')+tile('上櫃自營商',R.otc_dealer,'億')+
     tile('外資台指期淨未平倉',R.fut_net,'口',0)+
+    `<div class="tile"><div class="k">美元兌台幣／60 日線</div><div class="v mono">${R.usdtwd==null?'–':R.usdtwd.toFixed(3)}<span class="sub"> ${L.twd_ma60==null?'':L.twd_ma60.toFixed(3)}</span></div><div class="sub">${R.usdtwd==null||L.twd_ma60==null?'':(R.usdtwd<L.twd_ma60?'台幣強於均線（偏多）':'台幣弱於均線（偏空）')}</div></div>`+
     `<div class="tile"><div class="k">加權指數／距季線</div><div class="v mono">${L.twii.toLocaleString()}<span class="sub"> ${fmtPct(L.bias60)}</span></div></div>`+
     `<div class="tile"><div class="k">距年線</div><div class="v mono ${L.bias240>=0?'up':'down'}">${fmtPct(L.bias240)}</div></div>`;
   // stale
-  const F=D.freshness, lag=Object.entries({上市法人:F.twse_foreign,上櫃法人:F.otc_foreign,外資期貨:F.fut_net}).filter(([k,v])=>v!==F.twii_close);
+  const F=D.freshness, lag=Object.entries({上市法人:F.twse_foreign,上櫃法人:F.otc_foreign,外資期貨:F.fut_net,台幣匯率:F.usdtwd}).filter(([k,v])=>v!==F.twii_close);
   if(lag.length){const s=document.getElementById('stale');s.style.display='block';s.textContent='注意：'+lag.map(([k,v])=>`${k}最新只到 ${v??'無資料'}`).join('、')+`，指數已到 ${F.twii_close}。缺的因子暫時以中性計算。`}
 }
 
@@ -287,8 +291,8 @@ function pivTable(){
   document.getElementById('pivSummary').innerHTML=`<div class="tiles">
     <div class="tile"><div class="k">上漲波段：平均吃到</div><div class="v mono up">${capUp==null?'–':(capUp*100).toFixed(0)+'%'}</div><div class="sub">${up.length} 段上漲的漲幅</div></div>
     <div class="tile"><div class="k">下跌波段：損失少於一半</div><div class="v mono">${dnAvoided}/${dn.length}</div><div class="sub">段（相對抱著不動）</div></div>
-    <div class="tile"><div class="k">低點當天仍在放空</div><div class="v mono">${P.filter(p=>p.type==='trough'&&p.score<40).length}/${P.filter(p=>p.type==='trough').length}</div><div class="sub">次（越少越好）</div></div>
-    <div class="tile"><div class="k">高點當天仍強力偏多</div><div class="v mono">${P.filter(p=>p.type==='peak'&&p.score>=80).length}/${P.filter(p=>p.type==='peak').length}</div><div class="sub">次（越少越好）</div></div></div>`;
+    <div class="tile"><div class="k">低點當天仍在放空</div><div class="v mono">${P.filter(p=>p.type==='trough'&&p.score<20).length}/${P.filter(p=>p.type==='trough').length}</div><div class="sub">次（越少越好）</div></div>
+    <div class="tile"><div class="k">高點當天仍滿手多單</div><div class="v mono">${P.filter(p=>p.type==='peak'&&p.score>=60).length}/${P.filter(p=>p.type==='peak').length}</div><div class="sub">次（越少越好）</div></div></div>`;
   document.getElementById('pivTable').innerHTML='<tr><th>波段</th><th>方向</th><th>交易日</th><th>加權指數</th><th>照分數操作</th><th>平均部位</th><th>起點分數</th><th>轉弱/轉強確認</th></tr>'+
     L.slice().reverse().map(l=>{const p=P.find(x=>x.date===l.start)||{};const pos=l.avg_pos;
       return `<tr><td class="mono">${l.start} → ${l.open?'今天':l.end}</td><td class="${l.dir==='up'?'up':'down'}">${l.dir==='up'?'▲ 上漲':'▼ 下跌'}${l.open?'（進行中）':''}</td><td class="mono">${l.days}</td><td class="mono ${l.mkt>=0?'up':'down'}">${fmtPct(l.mkt)}</td><td class="mono ${l.strat>=0?'up':'down'}">${fmtPct(l.strat)}</td><td class="mono">${pos>=0?'多 ':'空 '}${Math.abs(pos*100).toFixed(0)}%</td><td class="mono">${p.score??'–'} ${p.regime??''}</td><td class="mono">${p.confirm_lag==null?'60 天內未確認':p.confirm_lag+' 天'}</td></tr>`}).join('');
