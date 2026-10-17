@@ -4,3 +4,5 @@
 [fetch] twse_insti up to date
 [fetch] tpex missing 0 days
 [fetch] saved fut_oi: 2038 rows, last 2026-10-16
+[fetch] fx: yfinance 2809 rows
+[fetch] saved fx: 2809 rows, last 2026-10-17
