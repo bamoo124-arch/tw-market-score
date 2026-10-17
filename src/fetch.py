@@ -385,6 +385,31 @@ def fetch_futures():
     save("fut_oi", merge(old, got))
 
 
+# ---------------------------------------------------------------- 美元兌台幣
+def fetch_fx():
+    """data/fx.csv：usdtwd（數字變大 = 台幣貶值）。主要：yfinance TWD=X；備援：FinMind 台銀即期匯率。"""
+    old = load("fx")
+    start = FETCH_START if old.empty else (old["date"].max() - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    new = pd.DataFrame()
+    try:
+        import yfinance as yf
+        h = yf.Ticker("TWD=X").history(start=start, auto_adjust=False)
+        if not h.empty:
+            h.index = pd.to_datetime(h.index).tz_localize(None).normalize()
+            new = pd.DataFrame({"date": h.index, "usdtwd": h["Close"].astype(float).values})
+            log(f"fx: yfinance {len(new)} rows")
+    except Exception as e:  # noqa: BLE001
+        log(f"fx: yfinance failed {e}")
+    if new.empty:
+        fm = finmind("TaiwanExchangeRate", start, data_id="USD")
+        if not fm.empty:
+            mid = (fm["spot_buy"].astype(float) + fm["spot_sell"].astype(float)) / 2
+            new = pd.DataFrame({"date": pd.to_datetime(fm["date"]), "usdtwd": mid})
+            new = new[new["usdtwd"] > 0]
+            log(f"fx: FinMind {len(new)} rows")
+    save("fx", merge(old, new))
+
+
 # ---------------------------------------------------------------- main
 def main():
     fetch_prices()
@@ -393,6 +418,10 @@ def main():
     fetch_twse(days)
     fetch_tpex(days)
     fetch_futures()
+    try:
+        fetch_fx()
+    except Exception as e:  # noqa: BLE001
+        log(f"fx failed: {e}")
 
 
 if __name__ == "__main__":
@@ -402,6 +431,6 @@ if __name__ == "__main__":
         days = [d.date() for d in prices["date"]] if not prices.empty else []
         for name in only:
             {"prices": fetch_prices, "twse": lambda: fetch_twse(days),
-             "tpex": lambda: fetch_tpex(days), "futures": fetch_futures}[name]()
+             "tpex": lambda: fetch_tpex(days), "futures": fetch_futures, "fx": fetch_fx}[name]()
     else:
         main()
