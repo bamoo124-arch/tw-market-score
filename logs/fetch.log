@@ -1,8 +1,9 @@
-[fetch] twii: FinMind 8 rows
-[fetch] twoii: FinMind 8 rows
-[fetch] saved prices: 2628 rows, last 2026-10-16
-[fetch] twse_insti up to date
-[fetch] tpex missing 0 days
-[fetch] saved fut_oi: 2038 rows, last 2026-10-16
-[fetch] fx: yfinance 2809 rows
-[fetch] saved fx: 2809 rows, last 2026-10-17
+[fetch] twii: FinMind 9 rows
+[fetch] twoii: FinMind 9 rows
+[fetch] saved prices: 2629 rows, last 2026-10-19
+[fetch] saved twse_insti: 2629 rows, last 2026-10-19
+[fetch] tpex missing 1 days
+[fetch] saved tpex_insti: 2629 rows, last 2026-10-19
+[fetch] saved fut_oi: 2039 rows, last 2026-10-19
+[fetch] fx: yfinance 9 rows
+[fetch] saved fx: 2810 rows, last 2026-10-19
