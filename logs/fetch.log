@@ -1,11 +1,12 @@
-[fetch] twii: FinMind 7 rows
-[fetch] twoii: FinMind 7 rows
-[fetch] saved prices: 2635 rows, last 2026-10-29
-[fetch] twse_insti up to date
-[fetch] tpex missing 0 days
-[fetch] saved fut_oi: 2045 rows, last 2026-10-29
+[fetch] twii: FinMind 8 rows
+[fetch] twoii: FinMind 8 rows
+[fetch] saved prices: 2636 rows, last 2026-10-30
+[fetch] saved twse_insti: 2636 rows, last 2026-10-30
+[fetch] tpex missing 1 days
+[fetch] saved tpex_insti: 2636 rows, last 2026-10-30
+[fetch] saved fut_oi: 2046 rows, last 2026-10-30
 /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/yfinance/utils.py:568: Pandas4Warning: The inplace keyword in DataFrame.sort_index is deprecated and will be removed in a future version (PDEP-8).
 See https://pandas.pydata.org/docs/dev/whatsnew/v3.1.0.html#deprecation-inplace for more details.
   quotes.sort_index(inplace=True)
-[fetch] fx: yfinance 9 rows
-[fetch] saved fx: 2818 rows, last 2026-10-29
+[fetch] fx: yfinance 10 rows
+[fetch] saved fx: 2819 rows, last 2026-10-30
