@@ -410,6 +410,22 @@ def fetch_fx():
     save("fx", merge(old, new))
 
 
+# ---------------------------------------------------------------- 美元指數
+def fetch_dxy():
+    """data/dxy.csv：美元指數 DXY（ICE，yfinance DX-Y.NYB）收盤。"""
+    old = load("dxy")
+    start = FETCH_START if old.empty else (old["date"].max() - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    import yfinance as yf
+    h = yf.Ticker("DX-Y.NYB").history(start=start, auto_adjust=False)
+    if h.empty:
+        log("dxy: empty")
+        return
+    h.index = pd.to_datetime(h.index).tz_localize(None).normalize()
+    new = pd.DataFrame({"date": h.index, "dxy": h["Close"].astype(float).values})
+    log(f"dxy: yfinance {len(new)} rows")
+    save("dxy", merge(old, new))
+
+
 # ---------------------------------------------------------------- main
 def main():
     fetch_prices()
@@ -422,6 +438,10 @@ def main():
         fetch_fx()
     except Exception as e:  # noqa: BLE001
         log(f"fx failed: {e}")
+    try:
+        fetch_dxy()
+    except Exception as e:  # noqa: BLE001
+        log(f"dxy failed: {e}")
 
 
 if __name__ == "__main__":
@@ -431,6 +451,6 @@ if __name__ == "__main__":
         days = [d.date() for d in prices["date"]] if not prices.empty else []
         for name in only:
             {"prices": fetch_prices, "twse": lambda: fetch_twse(days),
-             "tpex": lambda: fetch_tpex(days), "futures": fetch_futures, "fx": fetch_fx}[name]()
+             "tpex": lambda: fetch_tpex(days), "futures": fetch_futures, "fx": fetch_fx, "dxy": fetch_dxy}[name]()
     else:
         main()
